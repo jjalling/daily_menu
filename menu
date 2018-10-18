@@ -1,0 +1,109 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+from datetime import datetime
+import logging
+import re
+
+from bs4 import BeautifulSoup
+from py_translator import Translator
+import requests
+import argparse
+
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+log = logging.getLogger(__name__)
+
+WEEK_MENU_URL = ("https://torvekoekken.dk/frokostordning/luksuskoekkenet")
+WEEK_DAYS = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag"]
+
+
+def find_menu_in_text(text):
+    current_day = ""
+    menu_lines = []
+    menus = {}
+    for line in text.splitlines():
+        found_day = False
+        if "Der tages forbehold" in line:
+            menus[current_day] = menu_lines
+            return menus
+        else:
+            for day in WEEK_DAYS:
+                if day in line.lower():
+                    if current_day:
+                        menus[current_day] = menu_lines
+                    current_day = day
+                    menu_lines = []
+                    found_day = True
+        if found_day:
+            continue
+        if current_day:
+            if len(line) > 2:
+                menu_lines.append(line.rstrip())
+    return menus
+
+
+def get_menus():
+    menu_response = requests.get(WEEK_MENU_URL)
+    if menu_response.status_code == 200:
+        menu_html = menu_response.text
+        soup = BeautifulSoup(menu_html, "html.parser")
+        return find_menu_in_text(soup.get_text())
+    log.error("Failed to get menu. HTTP errorcode {}".format(menu_response.status_code))
+
+
+def today_menu(weekday):
+    menus = get_menus()
+    if weekday < len(WEEK_DAYS):
+        day_name = WEEK_DAYS[weekday]
+        if day_name in menus:
+            return menus[day_name]
+
+    return [u"Desværre, ingen menu fundet"]
+
+
+def translate(header, menu, language):
+    translator = Translator()
+    translated_header, translated_menu = translator.translate([header, menu], src="da", dest=language)
+    header = translated_header.text
+    menu = [x[0].text for x in zip(translated_menu)]
+    return header, menu
+
+
+def allergies_to_emoji(menu_items):
+    def letter_to_emoji(letter):
+        conv_table = {u"1": u"🍞", u"2": u"🥚", u"3": u"🐟", u"4": u"🥜", u"5": u"🍤", u"6": u"🥛"}
+        return conv_table.get(letter, ".")
+
+    def convert_letters(re_search):
+        letters = re_search.group(1).split(',')
+        return "".join([letter_to_emoji(x) for x in letters])
+
+    def do_replace(text):
+        return re.sub("\(([0-9, ]*)\)", convert_letters, text)
+
+    return [do_replace(t) for t in menu_items]
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('lang', type=str, help='Language', default='da', nargs='?')
+input_args = parser.parse_args()
+
+if __name__ == "__main__":
+    header = "Dagens menu"
+    weekday = datetime.today().weekday()
+    if datetime.today().hour >= 13:
+        weekday += 1
+        header = "Morgendagens menu"
+    menu = today_menu(weekday)
+    if input_args.lang is not 'da':
+        header, menu = translate(header, menu, 'en')
+    for i, l in enumerate(menu):
+        if (l.isupper()):
+            menu[i-1] = menu[i-1] + "\r\n"
+            menu[i] = "#" + l.capitalize()
+
+    for i, l in enumerate(menu):
+        if l[0] is "#":
+            menu[i] = "\033[2;37;4m" + l[1:] + "\033[0m"
+    menu_of_the_day = (u"\033[1;37m{}\033[0m\t\n\n{}".format(header, "\t\n".join(allergies_to_emoji(menu))))
+
+    print(menu_of_the_day)
