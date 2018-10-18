@@ -1,19 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from datetime import datetime
-import logging
 import re
-
+import argparse
 from bs4 import BeautifulSoup
 from py_translator import Translator
 import requests
-import argparse
-
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-log = logging.getLogger(__name__)
 
 WEEK_MENU_URL = ("https://torvekoekken.dk/frokostordning/luksuskoekkenet")
-WEEK_DAYS = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag"]
+WEEK_DAYS = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "hent"]
 
 
 def find_menu_in_text(text):
@@ -22,22 +17,19 @@ def find_menu_in_text(text):
     menus = {}
     for line in text.splitlines():
         found_day = False
-        if "Der tages forbehold" in line:
-            menus[current_day] = menu_lines
-            return menus
-        else:
-            for day in WEEK_DAYS:
-                if day in line.lower():
-                    if current_day:
-                        menus[current_day] = menu_lines
-                    current_day = day
-                    menu_lines = []
-                    found_day = True
+        for day in WEEK_DAYS:
+            if day in line.lower():
+                if current_day:
+                    menus[current_day] = menu_lines
+                current_day = day
+                menu_lines = []
+                found_day = True
         if found_day:
             continue
         if current_day:
             if len(line) > 2:
                 menu_lines.append(line.rstrip())
+    menus[current_day] = menu_lines
     return menus
 
 
@@ -46,8 +38,10 @@ def get_menus():
     if menu_response.status_code == 200:
         menu_html = menu_response.text
         soup = BeautifulSoup(menu_html, "html.parser")
-        return find_menu_in_text(soup.get_text())
-    log.error("Failed to get menu. HTTP errorcode {}".format(menu_response.status_code))
+        tags = soup.findAll('div', {'class': 'wrapper-menu clearfix col-xs-12'})
+        return find_menu_in_text(tags[0].get_text())
+    print("Failed to get menu. HTTP errorcode {}".format(menu_response.status_code))
+    quit(-1)
 
 
 def today_menu(weekday):
@@ -94,7 +88,11 @@ if __name__ == "__main__":
         weekday += 1
         header = "Morgendagens menu"
     menu = today_menu(weekday)
-    if input_args.lang is not 'da':
+    for i, l in enumerate(menu):
+        if l.isupper():
+            menu[i] = "#" + l.capitalize()
+
+    if input_args.lang == "da":
         try:
             header, menu = translate(header, menu, input_args.lang)
         except ValueError:
@@ -102,13 +100,9 @@ if __name__ == "__main__":
             quit(-1)
 
     for i, l in enumerate(menu):
-        if (l.isupper()):
+        if l.startswith('#'):
             menu[i-1] = menu[i-1] + "\r\n"
-            menu[i] = "#" + l.capitalize()
-
-    for i, l in enumerate(menu):
-        if l[0] is "#":
             menu[i] = "\033[2;37;4m" + l[1:] + "\033[0m"
     menu_of_the_day = (u"\033[1;37m{}\033[0m\t\n\n{}".format(header, "\t\n".join(allergies_to_emoji(menu))))
 
-    print(menu_of_the_day)
+print(menu_of_the_day)
