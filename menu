@@ -65,7 +65,7 @@ def translate(header, menu, language):
 def allergies_to_emoji(menu_items):
     def letter_to_emoji(letter):
         conv_table = {u"1": u"🍞", u"2": u"🥚", u"3": u"🐟", u"4": u"🥜", u"5": u"🍤", u"6": u"🥛"}
-        return conv_table.get(letter, ".")
+        return conv_table.get(letter, "[" + letter.strip() + "]")
 
     def convert_letters(re_search):
         letters = re_search.group(1).split(',')
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         if l.isupper():
             menu[i] = "#" + l.capitalize()
 
-    if input_args.lang == "da":
+    if input_args.lang != "da":
         try:
             header, menu = translate(header, menu, input_args.lang)
         except ValueError:
