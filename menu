@@ -95,7 +95,12 @@ if __name__ == "__main__":
         header = "Morgendagens menu"
     menu = today_menu(weekday)
     if input_args.lang is not 'da':
-        header, menu = translate(header, menu, 'en')
+        try:
+            header, menu = translate(header, menu, input_args.lang)
+        except ValueError:
+            print("Unknown ISO language code: " + input_args.lang)
+            quit(-1)
+
     for i, l in enumerate(menu):
         if (l.isupper()):
             menu[i-1] = menu[i-1] + "\r\n"
