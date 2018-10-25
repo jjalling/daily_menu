@@ -66,7 +66,7 @@ def translate(header, menu, language):
 
 def allergies_to_emoji(menu_items):
     def letter_to_emoji(letter):
-        conv_table = {u"1": u"🍞", u"2": u"🥚", u"3": u"🐟", u"4": u"🥜", u"5": u"🍤", u"6": u"🥛"}
+        conv_table = {u"1": u"🍞", u"2": u"🥚", u"3": u"🐟", u"4": u"🥜", u"5": u"🍤", u"6": u"🥛", u"7": u"[Soja]", u"8": "[Sesam]", u"9": u"[Nødder]", u"10": "[Selleri]", u"11": "[Sennep]", u"12": "[Lupin]", u"13": "[Svovldioxid]", u"14": u"[Bløddyr]", u"15": "[Hvidløg]"}
         return conv_table.get(letter, "[" + letter.strip() + "]")
 
     def convert_letters(re_search):
