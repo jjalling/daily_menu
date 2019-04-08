@@ -41,7 +41,11 @@ def get_menus():
         menu_html = menu_response.text
         soup = BeautifulSoup(menu_html, "html.parser")
         tags = soup.findAll('div', {'class': 'wrapper-menu clearfix col-xs-12'})
-        return find_menu_in_text(tags[0].get_text())
+        week = ("Uge " + datetime.today().strftime("%U"))
+        if (re.search(week, tags[0].get_text()) is None):
+            return find_menu_in_text(tags[0].get_text())
+        else:
+            return find_menu_in_text(tags[1].get_text())
     print("Failed to get menu. HTTP errorcode {}".format(menu_response.status_code))
     quit(-1)
 
@@ -66,7 +70,21 @@ def translate(header, menu, language):
 
 def allergies_to_emoji(menu_items):
     def letter_to_emoji(letter):
-        conv_table = {u"1": u"🍞", u"2": u"🥚", u"3": u"🐟", u"4": u"🥜", u"5": u"🍤", u"6": u"🥛", u"7": u"[Soja]", u"8": "[Sesam]", u"9": u"[Nødder]", u"10": "[Selleri]", u"11": "[Sennep]", u"12": "[Lupin]", u"13": "[Svovldioxid]", u"14": u"[Bløddyr]", u"15": "[Hvidløg]"}
+        conv_table = {u"1": u"🍞",
+                      u"2": u"🥚",
+                      u"3": u"🐟",
+                      u"4": u"🥜",
+                      u"5": u"🍤",
+                      u"6": u"🥛",  # Laktose
+                      u"7": u"[Soja]",  # Soja
+                      u"8": "[Sesam]",  # Sesam
+                      u"9": u"🌰",  # Noedder
+                      u"10": "[Selleri]",
+                      u"11": "[Sennep]",
+                      u"12": "[Lupin]",
+                      u"13": "[Svovldioxid]",
+                      u"14": "[Bløddyr]",
+                      u"15": "[Hvidløg]"}
         return conv_table.get(letter, "[" + letter.strip() + "]")
 
     def convert_letters(re_search):
